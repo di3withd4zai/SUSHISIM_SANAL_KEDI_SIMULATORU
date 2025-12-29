@@ -1,11 +1,12 @@
 #pragma once
-
-typedef struct {
-    int hunger;     // 0-100
-    int happiness;  // 0-100
-    int energy;     // 0-100
-
-    float tickTimer; // her 1 saniyede bir otomatik düşürmek için
+    typedef struct {
+    int hunger;
+    int happiness;
+    int energy;
+    
+    int score; // YENİ: Puan değişkeni
+    
+    float tickTimer;
 } Stats;
 
 void stats_init(Stats* s);

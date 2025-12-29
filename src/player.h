@@ -10,9 +10,12 @@ typedef struct {
     AnimState state;
     int frameIndex;
     float frameTimer;
+    
+    // YENİ: Yüzün baktığı yönü tutmak için değişken
+    SDL_RendererFlip flip; 
 
     SDL_Texture* sheet;
-    int frameW, frameH; // tek karenin boyutu
+    int frameW, frameH; 
 } Player;
 
 void player_init(Player* p, SDL_Texture* sheet, int frameW, int frameH);
