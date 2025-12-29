@@ -141,6 +141,12 @@ void game_update(Game* g) {
     g->dt = (float)diff / 1000.0f;
 
     if (state == STATE_PLAY) {
+        // EKLENMESİ GEREKEN KISIM BURASI:
+        // Klavyeyi oku ve player_handle_input'a gönder
+        const Uint8* keys = SDL_GetKeyboardState(NULL);
+        player_handle_input(&player, keys, g->dt);
+        // -----------------------------
+
         stats_update_over_time(&stats, g->dt);
         player_update(&player, g->dt);
 
@@ -157,17 +163,20 @@ void game_render(Game* g) {
     if (state == STATE_START) {
         SDL_SetRenderDrawColor(g->renderer, 20, 20, 30, 255);
         SDL_RenderClear(g->renderer);
-render_button(g->renderer, btnFeed);
-render_button(g->renderer, btnPlay);
-render_button(g->renderer, btnRest);
 
-render_text(g->renderer, "BESLE",  btnFeed.x + 55, btnFeed.y + 15);
-render_text(g->renderer, "OYNA",   btnPlay.x + 60, btnPlay.y + 15);
-render_text(g->renderer, "DINLEN", btnRest.x + 45, btnRest.y + 15);
+        // Süs butonları
+        render_button(g->renderer, btnFeed);
+        render_text(g->renderer, "BESLE",  btnFeed.x + 55, btnFeed.y + 15);
+        
+        render_button(g->renderer, btnPlay);
+        render_text(g->renderer, "OYNA",   btnPlay.x + 60, btnPlay.y + 15);
+        
+        render_button(g->renderer, btnRest);
+        render_text(g->renderer, "DINLEN", btnRest.x + 45, btnRest.y + 15);
 
-
-        // Start butonu
+        // Start butonu ve yazısı
         render_button(g->renderer, btnStart);
+        render_text(g->renderer, "START", btnStart.x + 60, btnStart.y + 18);
     }
     else if (state == STATE_PLAY) {
         SDL_Rect ground = { 0, 0, 960, 540 };
@@ -179,28 +188,28 @@ render_text(g->renderer, "DINLEN", btnRest.x + 45, btnRest.y + 15);
 
         // Oyun butonları
         render_button(g->renderer, btnFeed);
+        render_text(g->renderer, "BESLE",  btnFeed.x + 55, btnFeed.y + 15);
+        
         render_button(g->renderer, btnPlay);
+        render_text(g->renderer, "OYNA",   btnPlay.x + 60, btnPlay.y + 15);
+        
         render_button(g->renderer, btnRest);
+        render_text(g->renderer, "DINLEN", btnRest.x + 45, btnRest.y + 15);
     }
     else if (state == STATE_GAMEOVER) {
         SDL_SetRenderDrawColor(g->renderer, 10, 10, 15, 255);
         SDL_RenderClear(g->renderer);
 
-        // Restart butonu
+        render_text(g->renderer, "GAME OVER", 380, 240);
+
+        // Restart butonu ve yazısı
         render_button(g->renderer, btnRestart);
+        render_text(g->renderer, "RESTART", btnRestart.x + 45, btnRestart.y + 18);
     }
 
-    render_present(g->renderer);
-
-    render_button(g->renderer, btnStart);
-render_text(g->renderer, "START", btnStart.x + 60, btnStart.y + 18);
-
-render_button(g->renderer, btnRestart);
-render_text(g->renderer, "RESTART", btnRestart.x + 45, btnRestart.y + 18);
-render_text(g->renderer, "GAME OVER", 380, 240);
-
-
+    render_present(g->renderer); // BU EN SONDA OLMALI
 }
+
 
 void game_cleanup(Game* g) {
     if (sushiSheet) SDL_DestroyTexture(sushiSheet);
