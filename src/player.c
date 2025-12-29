@@ -8,7 +8,8 @@ void player_init(Player* p, SDL_Texture* sheet, int frameW, int frameH) {
     p->frameIndex = 0;
     p->frameTimer = 0;
     
-    p->flip = SDL_FLIP_NONE; // Başlangıçta normal (sağa) baksın
+    // Başlangıçta sağa baksın (NONE)
+    p->flip = SDL_FLIP_NONE; 
 
     p->sheet = sheet;
     p->frameW = frameW;
@@ -25,13 +26,14 @@ void player_handle_input(Player* p, const Uint8* keys, float dt) {
     int moving = (vx != 0 || vy != 0);
     p->state = moving ? ANIM_WALK : ANIM_IDLE;
 
-    // YENİ: Yön Kontrolü
-    // Sadece sağa veya sola basılıyorsa yönü değiştir.
-    // (Yukarı/aşağı basarken en son baktığı yöne bakmaya devam eder)
-    if (vx < 0) p->flip = SDL_FLIP_HORIZONTAL; // Sola dön (Aynala)
-    if (vx > 0) p->flip = SDL_FLIP_NONE;       // Sağa dön (Normal)
+    // --- YÖN ÇEVİRME MANTIĞI ---
+    // Sola gidiyorsa resmi AYNALA (Flip Horizontal)
+    if (vx < 0) p->flip = SDL_FLIP_HORIZONTAL;
+    
+    // Sağa gidiyorsa resmi NORMAL yap
+    if (vx > 0) p->flip = SDL_FLIP_NONE;
 
-    // Hareket normalizasyonu ve pozisyon güncelleme
+    // Hareket işlemleri
     if (moving) {
         float len = (vx*vx + vy*vy);
         if (len > 1) { vx *= 0.7071f; vy *= 0.7071f; }
@@ -41,22 +43,34 @@ void player_handle_input(Player* p, const Uint8* keys, float dt) {
 }
 
 void player_update(Player* p, float dt) {
-    int frameCount = 4;
-
+    // --- ANIMASYON DÜZELTMESİ ---
+    
     if (p->state == ANIM_IDLE) {
-        p->frameIndex = 0;
-        p->frameTimer = 0;
+        // Dururken 1. kareyi göster (Genelde oturma/bekleme karesi)
+        p->frameIndex = 0; 
     } 
     else {
-        float frameDuration = 0.12f; // Animasyon hızı
+        // YÜRÜRKEN:
+        // Eğer resim dosyan 'yürüyüş animasyonu' değil de 'yönler' içeriyorsa
+        // sürekli kare değiştirmek kediyi döndürür.
+        // O yüzden kareyi SABİTLİYORUZ.
+        
+        // DENEME-YANILMA: Eğer kedi garip duruyorsa buradaki '1' sayısını 0, 2 veya 3 yap.
+        // Genelde yan profilden görünen kare 1. veya 2. karedir.
+        p->frameIndex = 1; 
+        
+        // Not: Eğer gerçek bir adım atma animasyonun varsa aşağıdaki kodu açabilirsin:
+        /*
+        float frameDuration = 0.12f;
         p->frameTimer += dt;
         if (p->frameTimer >= frameDuration) {
             p->frameTimer = 0;
-            p->frameIndex = (p->frameIndex + 1) % frameCount;
+            p->frameIndex = (p->frameIndex + 1) % 4;
         }
+        */
     }
 
-    // Sınır Kontrolü (Clamping)
+    // Sınır Kontrolü (Ekran dışına çıkmasın)
     int catSize = 128; // 32 * 4
     if (p->x < 0) p->x = 0;
     if (p->y < 0) p->y = 0;
@@ -65,15 +79,12 @@ void player_update(Player* p, float dt) {
 }
 
 void player_render(Player* p, SDL_Renderer* r) {
-    // Animasyon satırını seç
+    // IDLE ise 0. satır, Yürüyorsa 1. satır
     int row = (p->state == ANIM_IDLE) ? 0 : 1;
 
     SDL_Rect src = { p->frameIndex * p->frameW, row * p->frameH, p->frameW, p->frameH };
-    SDL_Rect dst = { (int)p->x, (int)p->y, p->frameW * 4, p->frameH * 4 }; // 4 kat büyük çizim
+    SDL_Rect dst = { (int)p->x, (int)p->y, p->frameW * 4, p->frameH * 4 }; 
 
-    // YENİ: RenderCopyEx ile çizim (Döndürme ve Çevirme destekli)
-    // 0.0 -> Açı (dönme yok)
-    // NULL -> Dönme merkezi (ortası)
-    // p->flip -> Yatay çevirme durumu
+    // SDL_RenderCopyEx ile çiziyoruz ki 'flip' özelliğini kullanabilelim
     SDL_RenderCopyEx(r, p->sheet, &src, &dst, 0.0, NULL, p->flip);
 }
