@@ -256,7 +256,7 @@ void game_render(Game* g) {
         SDL_RenderClear(g->renderer);
         
         SDL_Color overColor = { 255, 100, 100, 255 };
-        render_text_centered(g->renderer, "OYUN BITTI", 200, 64, overColor);
+        render_text_centered(g->renderer, "SUSHI'YE IYI BAKAMADIN :(", 200, 64, overColor);
         
         render_button(g->renderer, btnRestart);
         render_text(g->renderer, "TEKRAR", btnRestart.x + 65, btnRestart.y + 15, whiteText);
