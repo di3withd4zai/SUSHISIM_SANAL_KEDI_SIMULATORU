@@ -74,6 +74,7 @@ Oyuncu; **Açlık, Mutluluk ve Enerji** değerlerini dengede tutarak oyunu sürd
 
 ### 1) Gerekli Paketler
 bash
+
 pacman -S mingw-w64-ucrt-x86_64-gcc \
           mingw-w64-ucrt-x86_64-SDL2 \
           mingw-w64-ucrt-x86_64-SDL2_image \
