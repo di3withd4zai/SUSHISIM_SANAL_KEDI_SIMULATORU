@@ -1,275 +1,252 @@
 /**
- * Dosya: game.c
- * Amaç: Oyunun ana mantığını yönetir. Olay döngüsü, oyun durumları (Menü, Oyun, Bitiş)
- * ve fare tıklamalarıyla etkileşimler burada kodlanmıştır.
+ * Dosya: src/game.c
+ * Açıklama: Oyunun ana döngüsü, olayların işlenmesi ve EKRANA ÇİZİM.
+ * NOT: Resimlerin neresinin kesileceği (Sprite Slicing) buradaki 'DEFINE' ayarlarındadır.
  */
 
 #include "game.h"
-#include <stdio.h>
 #include "player.h"
 #include "stats.h"
 #include "render.h"
-#include <stdlib.h> // rand() fonksiyonu için gerekli
+#include <stdio.h>
 
-// Oyunun o anki durumunu belirten Enum yapısı
-typedef enum { 
-    STATE_START,    // Giriş Menüsü
-    STATE_PLAY,     // Oyun Oynanıyor
-    STATE_GAMEOVER  // Oyun Bitti Ekranı
-} GameState;
+// --- EKRAN AYARLARI ---
+#define W_WIDTH  1280
+#define W_HEIGHT 720
 
-// Başlangıç durumu STATE_START olarak ayarlandı
-static GameState state = STATE_START;
+// =============================================================
+// >>> GÖRSEL AYARLAR (SPRITE SLICING) <<<
+// =============================================================
+// Buradaki değerleri değiştirerek resimlerin doğru yerini seçebilirsin.
 
-// Oyun içi nesneler
-static Player player; // Kedi karakteri
-static Stats stats;   // İstatistikler (Açlık, Mutluluk vb.)
-static SDL_Texture* sushiSheet = NULL; // Kedinin resim dosyası (Sprite Sheet)
+// 1. YATAK (Furnitures.png dosyasından kesilecek alan)
+// Sol üst köşeden başlar. x:0, y:16, genişlik:48, yükseklik:32
+#define BED_SRC_X 190
+#define BED_SRC_Y 230
+#define BED_SRC_W 132
+#define BED_SRC_H 90
 
-// --- PARTİKÜL SİSTEMİ (KALPLER) ---
-// Oyuncuya geri bildirim vermek için ekranda uçuşan kalpler
-#define MAX_PARTICLES 20 // Ekranda aynı anda en fazla 20 kalp olabilir
+// 2. MAMA KABI (Furnitures.png dosyasından)
+#define BOWL_SRC_X 250
+#define BOWL_SRC_Y 390
+#define BOWL_SRC_W 60
+#define BOWL_SRC_H 45
 
-typedef struct {
-    float x, y;   // Konum
-    float vy;     // Dikey hız (Yukarı çıkma hızı)
-    float life;   // Ömür (1.0'dan başlar, 0.0 olunca silinir)
-    int active;   // Bu partikül şu an ekranda mı? (1: Evet, 0: Hayır)
-} Particle;
+// 3. UI BUTONLARI (free.png dosyasından)
+#define BTN_SRC_X 0
+#define BTN_SRC_Y 0
+#define BTN_SRC_W 48
+#define BTN_SRC_H 16
 
-static Particle particles[MAX_PARTICLES]; // Partikül havuzu
+// 4. EKRANDAKİ KONUMLAR (Eşyalar nerede dursun?)
+#define POS_BED_X    900
+#define POS_BED_Y    300
+#define POS_BOWL_X   150
+#define POS_BOWL_Y   450
+#define POS_TOY_X    550
+#define POS_TOY_Y    500
+// =============================================================
 
-// Yeni bir kalp oluşturma fonksiyonu
-void spawn_heart(float x, float y) {
-    // Havuzdaki boş (active olmayan) ilk partikülü bul ve kullan
-    for (int i = 0; i < MAX_PARTICLES; i++) {
-        if (!particles[i].active) {
-            particles[i].active = 1;
-            particles[i].x = x;
-            particles[i].y = y;
-            // -50 ile -100 arasında rastgele bir yukarı hız ver
-            particles[i].vy = -50.0f - (rand() % 50); 
-            particles[i].life = 1.0f; // Tam ömürle başla
-            break; // Bir tane oluşturunca döngüden çık
-        }
-    }
-}
+// Oyun Değişkenleri
+static Player player;
+static Stats stats;
+// Resim Dosyaları (Texture)
+static SDL_Texture* tFurn = NULL; // Mobilyalar
+static SDL_Texture* tIdle = NULL; // Kedi
+static SDL_Texture* tBox  = NULL; // Oyuncak Kutu
+static SDL_Texture* tUI   = NULL; // Butonlar
 
-// Tüm aktif partikülleri güncelleme (Hareket ettirme ve ömrünü azaltma)
-void update_particles(float dt) {
-    for (int i = 0; i < MAX_PARTICLES; i++) {
-        if (particles[i].active) {
-            particles[i].y += particles[i].vy * dt; // Yukarı hareket
-            particles[i].life -= dt * 1.5f;         // Ömürden düş (Silinme hızı)
-            
-            // Ömrü bittiyse pasif hale getir
-            if (particles[i].life <= 0) particles[i].active = 0;
-        }
-    }
-}
-// ----------------------------------
+// Butonların Ekrandaki Alanları {x, y, w, h}
+SDL_Rect btnFeed  = { 150, 620, 192, 64 };
+SDL_Rect btnPlay  = { 540, 620, 192, 64 };
+SDL_Rect btnSleep = { 930, 620, 192, 64 };
 
-// BUTON TANIMLAMALARI (Koordinat ve Boyutlar: x, y, genişlik, yükseklik)
-static SDL_Rect btnStart   = { 380, 280, 200, 50 }; // Başla butonu
-static SDL_Rect btnRestart = { 380, 320, 200, 50 }; // Tekrar butonu
+// Menü Butonları
+SDL_Rect btnStart  = { 540, 350, 192, 64 };
+SDL_Rect btnResume = { 540, 300, 192, 64 };
+SDL_Rect btnExit   = { 540, 400, 192, 64 };
 
-// Oyun içi eylem butonları
-static SDL_Rect btnFeed    = { 140, 470, 160, 50 }; // Mama
-static SDL_Rect btnPlay    = { 310, 470, 160, 50 }; // Oyna
-static SDL_Rect btnRest    = { 480, 470, 160, 50 }; // Uyu
-static SDL_Rect btnClean   = { 650, 470, 160, 50 }; // Temizle
-
-// Yardımcı Fonksiyon: Bir noktanın (x,y) bir kutunun (rect) içinde olup olmadığını kontrol eder.
-// Fare tıklamalarını algılamak için kullanılır.
-static int point_in_rect(int x, int y, SDL_Rect r) {
-    return (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h);
-}
-
-// Oyunu Başlatma (Init)
 int game_init(Game* g, const char* title, int w, int h) {
-    // SDL kütüphanesini başlat (Video ve Zamanlayıcı modülleri)
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) return 0;
+    SDL_Init(SDL_INIT_VIDEO);
+    IMG_Init(IMG_INIT_PNG);
     
-    // Yazı tipi (Font) kütüphanesini başlat
-    if (TTF_Init() == -1) return 0;
-    
-    // Resim yükleme kütüphanesini (PNG desteği ile) başlat
-    if (!(IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG)) return 0;
+    // Yazı tiplerini yükle
+    if (!render_init_fonts()) {
+        printf("HATA: 'assets/font.ttf' dosyasi bulunamadi!\n");
+        return 0;
+    }
 
     // Pencereyi oluştur
-    g->window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, w, h, 0);
-    
-    // Çiziciyi (Renderer) oluştur (Donanım hızlandırma aktif)
+    g->width = W_WIDTH;
+    g->height = W_HEIGHT;
+    g->window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, W_WIDTH, W_HEIGHT, 0);
     g->renderer = SDL_CreateRenderer(g->window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    
-    // Kedinin görselini yükle
-    sushiSheet = IMG_LoadTexture(g->renderer, "assets/sushi_sheet.png");
-    
-    // Alt sistemleri hazırla
-    player_init(&player, sushiSheet, 32, 32); // Oyuncu ayarları
-    stats_init(&stats);                       // İstatistikler sıfırla
-    
-    // Partikül havuzunu temizle (başlangıçta hiç kalp yok)
-    for(int i=0; i<MAX_PARTICLES; i++) particles[i].active = 0;
 
-    state = STATE_START; // Başlangıç ekranı
-    g->running = 1;      // Oyun çalışıyor
-    g->lastTick = SDL_GetTicks(); // Zaman sayacını başlat
+    // --- RESİMLERİ YÜKLEME KISMI ---
+    tFurn = IMG_LoadTexture(g->renderer, "assets/Furnitures.png");
+    tIdle = IMG_LoadTexture(g->renderer, "assets/Idle.png");
+    tBox  = IMG_LoadTexture(g->renderer, "assets/Box3.png"); // Kutu resmi
+    tUI   = IMG_LoadTexture(g->renderer, "assets/free.png"); // UI resmi
+
+    if(!tFurn || !tIdle || !tBox || !tUI) {
+        printf("UYARI: Bazi resimler yuklenemedi. Renkli kutular kullanilacak.\n");
+    }
+
+    player_init(&player, tIdle, tBox);
+    stats_init(&stats);
+    
+    g->running = 1;
+    g->state = STATE_MENU; // Oyun MENÜ ile başlar
+    g->lastTick = SDL_GetTicks();
     return 1;
 }
 
-// Olayları (Event) İşleme: Klavye ve Fare
+// Tıklama kontrolü
+int is_clicked(int mx, int my, SDL_Rect btn) {
+    return (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h);
+}
+
 void game_handle_events(Game* g) {
     SDL_Event e;
-    // Kuyruktaki tüm olayları teker teker işle
-    while (SDL_PollEvent(&e)) {
-        // Çarpı işaretine basıldıysa oyunu kapat
-        if (e.type == SDL_QUIT) g->running = 0;
-        
-        // Fare Tıklaması Kontrolü
-        if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
-            int mx = e.button.x; // Tıklanan X koordinatı
-            int my = e.button.y; // Tıklanan Y koordinatı
-            
-            // Eğer Başlangıç Ekranındaysak
-            if (state == STATE_START) {
-                if (point_in_rect(mx, my, btnStart)) state = STATE_PLAY;
-            } 
-            // Eğer Oyun Oynanıyorsa
-            else if (state == STATE_PLAY) {
-                // "Mama Ver" Butonu
-                if (point_in_rect(mx, my, btnFeed)) {
-                    stats_feed(&stats);
-                    spawn_heart(player.x + 60, player.y); // Kedinin yanından kalp çıkar
-                }
-                // "Oyna" Butonu
-                else if (point_in_rect(mx, my, btnPlay)) {
-                    stats_play(&stats);
-                    // İki kalp birden çıkar (daha mutlu)
-                    spawn_heart(player.x + 60, player.y);
-                    spawn_heart(player.x + 20, player.y - 20);
-                }
-                // "Uyu" Butonu
-                else if (point_in_rect(mx, my, btnRest)) stats_rest(&stats);
+    while(SDL_PollEvent(&e)) {
+        if(e.type == SDL_QUIT) g->running = 0;
+
+        // Klavye Kontrolü (ESC)
+        if(e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE) {
+            if (g->state == STATE_PLAY) g->state = STATE_PAUSE;
+            else if (g->state == STATE_PAUSE) g->state = STATE_PLAY;
+        }
+
+        // Fare Kontrolü
+        if(e.type == SDL_MOUSEBUTTONDOWN) {
+            int mx = e.button.x, my = e.button.y;
+
+            if (g->state == STATE_MENU) {
+                if (is_clicked(mx, my, btnStart)) g->state = STATE_PLAY;
+            }
+            else if (g->state == STATE_PAUSE) {
+                if (is_clicked(mx, my, btnResume)) g->state = STATE_PLAY;
+                if (is_clicked(mx, my, btnExit)) g->running = 0;
+            }
+            else if (g->state == STATE_PLAY) {
+                // Kediye Emir Ver
+                if (is_clicked(mx, my, btnFeed))  
+                    player_set_target(&player, POS_BOWL_X, POS_BOWL_Y - 40, STATE_EATING);
                 
-                // "Temizle" Butonu
-                else if (point_in_rect(mx, my, btnClean)) stats_clean(&stats);
-            } 
-            // Eğer Oyun Bittiyse
-            else if (state == STATE_GAMEOVER) {
-                // "Tekrar" butonuna basılırsa oyunu sıfırla
-                if (point_in_rect(mx, my, btnRestart)) {
-                    stats_init(&stats);
-                    state = STATE_PLAY;
-                }
+                if (is_clicked(mx, my, btnPlay))  
+                    player_set_target(&player, POS_TOY_X, POS_TOY_Y, STATE_PLAYING);
+                
+                if (is_clicked(mx, my, btnSleep)) 
+                    player_set_target(&player, POS_BED_X + 20, POS_BED_Y + 20, STATE_SLEEPING);
             }
         }
     }
-    
-    // Klavye Kontrolleri (Kısayol Tuşları)
-    const Uint8* keys = SDL_GetKeyboardState(NULL);
-    if (keys[SDL_SCANCODE_ESCAPE]) g->running = 0; // ESC ile çıkış
-    
-    if (state == STATE_PLAY) {
-        // Oyuncuyu hareket ettir
-        player_handle_input(&player, keys, g->dt);
-        
-        // Klavye kısayolları (F: Feed, P: Play, R: Rest)
-        if (keys[SDL_SCANCODE_F]) { stats_feed(&stats); spawn_heart(player.x+60, player.y); }
-        if (keys[SDL_SCANCODE_P]) { stats_play(&stats); spawn_heart(player.x+60, player.y); }
-        if (keys[SDL_SCANCODE_R]) stats_rest(&stats);
-    }
 }
 
-// Oyun Mantığını Güncelleme (Update)
 void game_update(Game* g) {
-    // Delta Time hesapla (Geçen süre)
+    // Delta Time (Geçen Süre) Hesabı
     Uint32 now = SDL_GetTicks();
-    g->dt = (now - g->lastTick) / 1000.0f; // Milisaniyeyi saniyeye çevir
+    g->dt = (now - g->lastTick) / 1000.0f;
     g->lastTick = now;
 
-    if (state == STATE_PLAY) {
-        stats_update_over_time(&stats, g->dt); // Açlık, enerji vb. zamanla değişimi
-        player_update(&player, g->dt);         // Karakter hareketi güncellemesi
-        update_particles(g->dt);               // Kalp efektlerini güncelle
-
-        // Oyun Bitiş Kontrolü: Hepsi 0 ise oyun biter
-        if (stats.hunger == 0 && stats.happiness == 0 && stats.energy == 0) state = STATE_GAMEOVER;
+    if (g->state == STATE_PLAY) {
+        PlayerState oldS = player.state;
+        
+        player_update(&player, g->dt);
+        stats_update_over_time(&stats, g->dt);
+        
+        // Eylem bitince puan ver
+        if(oldS == STATE_EATING && player.state == STATE_IDLE) stats_feed(&stats);
+        if(oldS == STATE_SLEEPING && player.state == STATE_IDLE) stats_rest(&stats);
+        if(oldS == STATE_PLAYING && player.state == STATE_IDLE) stats_play(&stats);
     }
 }
 
-// Çizim İşlemleri (Render)
 void game_render(Game* g) {
-    // Renk tanımları
-    SDL_Color darkText = { 40, 40, 60, 255 };
-    SDL_Color whiteText = { 255, 255, 255, 255 };
-    SDL_Color titleColor = { 139, 0, 0, 255 };
+    // 1. Arka Plan (Sıcak Bej Rengi)
+    SDL_SetRenderDrawColor(g->renderer, 240, 230, 210, 255);
+    SDL_RenderClear(g->renderer);
 
-    // --- BAŞLANGIÇ EKRANI ---
-    if (state == STATE_START) {
-        SDL_SetRenderDrawColor(g->renderer, 255, 228, 225, 255); // Açık pembe arka plan
-        SDL_RenderClear(g->renderer);
+    SDL_Color cBlack = {0,0,0,255};
+    SDL_Color cWhite = {255,255,255,255};
+    
+    // Hata ayıklama renkleri (Resim yoksa bu renkler görünür)
+    SDL_Color cDebugRed = {255,100,100,255};
+    SDL_Color cDebugGreen = {100,255,100,255};
+    SDL_Color cDebugBlue = {100,100,255,255};
 
-        render_text_centered(g->renderer, "SUSHI SIMULATOR", 120, 64, titleColor);
-        render_text_centered(g->renderer, "- Sanal Kedi -", 190, 20, darkText);
+    // UI Kesim Alanı (Buton Kalıbı)
+    SDL_Rect srcUI = { BTN_SRC_X, BTN_SRC_Y, BTN_SRC_W, BTN_SRC_H };
 
-        render_button(g->renderer, btnStart);
-        render_text(g->renderer, "BASLA", btnStart.x + 70, btnStart.y + 15, whiteText);
+    // --- MENÜ EKRANI ---
+    if (g->state == STATE_MENU) {
+        render_text_centered_x(g->renderer, "SUSHI SIMULATOR", W_WIDTH, 150, cBlack, 64);
+        render_text_centered_x(g->renderer, "- Sanal Kedi -", W_WIDTH, 230, cBlack, 24);
+        
+        render_sprite(g->renderer, tUI, srcUI, btnStart, cDebugBlue);
+        render_text_in_box(g->renderer, "BASLA", btnStart, cWhite);
     }
+    
     // --- OYUN EKRANI ---
-    else if (state == STATE_PLAY) {
-        SDL_SetRenderDrawColor(g->renderer, 250, 240, 230, 255); // Krem rengi arka plan
-        SDL_RenderClear(g->renderer);
+    else if (g->state == STATE_PLAY || g->state == STATE_PAUSE) {
+        
+        // 1. Yatak Çizimi (Furnitures.png içinden keserek)
+        SDL_Rect srcBed = { BED_SRC_X, BED_SRC_Y, BED_SRC_W, BED_SRC_H };
+        SDL_Rect dstBed = { POS_BED_X, POS_BED_Y, BED_SRC_W * 4, BED_SRC_H * 4 };
+        render_sprite(g->renderer, tFurn, srcBed, dstBed, cDebugBlue);
 
-        // 1. Önce yerdeki kakaları çiz (Kedinin arkasında kalsın diye önce çiziyoruz)
-        render_poops(g->renderer, stats.poopCount);
+        // 2. Mama Kabı Çizimi
+        SDL_Rect srcBowl = { BOWL_SRC_X, BOWL_SRC_Y, BOWL_SRC_W, BOWL_SRC_H };
+        SDL_Rect dstBowl = { POS_BOWL_X, POS_BOWL_Y, BOWL_SRC_W * 4, BOWL_SRC_H * 4 };
+        render_sprite(g->renderer, tFurn, srcBowl, dstBowl, cDebugGreen);
 
-        // 2. Kediyi çiz
+        // 3. Oyuncak Kutu (Yerde duruyor)
+        SDL_Rect srcToy = { 0, 0, 32, 32 };
+        SDL_Rect dstToy = { POS_TOY_X, POS_TOY_Y, 64, 64 };
+        render_sprite(g->renderer, tBox, srcToy, dstToy, cDebugRed);
+
+        // 4. Kedi Çizimi
         player_render(&player, g->renderer);
-        
-        // 3. Partikülleri (Kalpler) en öne çiz
-        for(int i=0; i<MAX_PARTICLES; i++) {
-            if(particles[i].active) {
-                render_heart(g->renderer, (int)particles[i].x, (int)particles[i].y, (int)(particles[i].life * 255));
-            }
+
+        // 5. Alt Butonlar
+        render_sprite(g->renderer, tUI, srcUI, btnFeed, cDebugRed);
+        render_text_in_box(g->renderer, "MAMA", btnFeed, cWhite);
+
+        render_sprite(g->renderer, tUI, srcUI, btnPlay, cDebugRed);
+        render_text_in_box(g->renderer, "OYNA", btnPlay, cWhite);
+
+        render_sprite(g->renderer, tUI, srcUI, btnSleep, cDebugRed);
+        render_text_in_box(g->renderer, "UYU", btnSleep, cWhite);
+
+        // 6. İstatistikler
+        char info[128];
+        sprintf(info, "Aclik: %d  Enerji: %d  Mutluluk: %d", stats.hunger, stats.energy, stats.happiness);
+        render_text(g->renderer, info, 20, 20, cBlack, 24);
+
+        // --- PAUSE EKRANI (Yarı Saydam) ---
+        if (g->state == STATE_PAUSE) {
+            SDL_SetRenderDrawBlendMode(g->renderer, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(g->renderer, 0, 0, 0, 150);
+            SDL_Rect scr = {0,0,W_WIDTH, W_HEIGHT};
+            SDL_RenderFillRect(g->renderer, &scr);
+            SDL_SetRenderDrawBlendMode(g->renderer, SDL_BLENDMODE_NONE);
+
+            render_text_centered_x(g->renderer, "DURAKLATILDI", W_WIDTH, 200, cWhite, 64);
+            
+            render_sprite(g->renderer, tUI, srcUI, btnResume, cDebugBlue);
+            render_text_in_box(g->renderer, "DEVAM", btnResume, cWhite);
+
+            render_sprite(g->renderer, tUI, srcUI, btnExit, cDebugBlue);
+            render_text_in_box(g->renderer, "CIKIS", btnExit, cWhite);
         }
-
-        // 4. Gösterge panelini (HUD) çiz
-        render_hud(g->renderer, &stats);
-
-        // 5. Butonları çiz
-        render_button(g->renderer, btnFeed);
-        render_text(g->renderer, "MAMA",  btnFeed.x + 50, btnFeed.y + 15, whiteText);
-        
-        render_button(g->renderer, btnPlay);
-        render_text(g->renderer, "OYNA",   btnPlay.x + 55, btnPlay.y + 15, whiteText);
-        
-        render_button(g->renderer, btnRest);
-        render_text(g->renderer, "UYU", btnRest.x + 60, btnRest.y + 15, whiteText);
-
-        render_button(g->renderer, btnClean);
-        render_text(g->renderer, "TEMIZLE", btnClean.x + 40, btnClean.y + 15, whiteText);
-    }
-    // --- OYUN BİTTİ EKRANI ---
-    else if (state == STATE_GAMEOVER) {
-        SDL_SetRenderDrawColor(g->renderer, 60, 0, 0, 255); // Koyu kırmızı arka plan
-        SDL_RenderClear(g->renderer);
-        
-        SDL_Color overColor = { 255, 100, 100, 255 };
-        render_text_centered(g->renderer, "SUSHI'YE IYI BAKAMADIN :(", 200, 64, overColor);
-        
-        render_button(g->renderer, btnRestart);
-        render_text(g->renderer, "TEKRAR", btnRestart.x + 65, btnRestart.y + 15, whiteText);
     }
 
-    // Çizilen her şeyi ekrana yansıt (Double Buffering)
-    render_present(g->renderer);
+    SDL_RenderPresent(g->renderer);
 }
 
-// Temizlik İşlemleri
 void game_cleanup(Game* g) {
-    if (sushiSheet) SDL_DestroyTexture(sushiSheet);
-    if (g->renderer) SDL_DestroyRenderer(g->renderer);
-    if (g->window) SDL_DestroyWindow(g->window);
-    IMG_Quit(); SDL_Quit(); TTF_Quit();
+    SDL_DestroyTexture(tFurn); SDL_DestroyTexture(tIdle);
+    SDL_DestroyTexture(tBox); SDL_DestroyTexture(tUI);
+    SDL_DestroyRenderer(g->renderer); SDL_DestroyWindow(g->window);
+    IMG_Quit(); TTF_Quit(); SDL_Quit();
 }

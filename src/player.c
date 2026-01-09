@@ -1,91 +1,109 @@
 /**
- * Dosya: player.c
- * Amaç: Oyuncu (kedi) karakterinin hareketlerini, animasyon durumunu 
- * ve ekrana çizilmesini yönetir.
+ * Dosya: src/player.c
+ * Açıklama: Kedinin hareket matematiği ve görsel efektleri.
  */
 
 #include "player.h"
+#include <math.h> // Matematik fonksiyonları (Karekök, Sinüs)
 
-// Oyuncuyu başlangıç değerleriyle hazırla
-void player_init(Player* p, SDL_Texture* sheet, int frameW, int frameH) {
-    p->x = 200; p->y = 280; // Başlangıç koordinatları
-    p->speed = 350.0f;      // Hareket hızı (piksel/saniye)
+#define SPEED 250.0f  // Kedinin hızı
+#define SCALE 4       // Kedi ekranda 4 kat büyük görünsün
 
-    p->state = ANIM_IDLE;   // Başlangıçta duruyor
-    p->frameIndex = 0;      // Animasyonun ilk karesi
-    p->frameTimer = 0;
-    
-    p->flip = SDL_FLIP_NONE; // Başlangıçta normal (sola bakıyor varsayalım)
-
-    p->sheet = sheet;       // Sprite görseli
-    p->frameW = frameW;     // Bir karenin genişliği
-    p->frameH = frameH;     // Bir karenin yüksekliği
+void player_init(Player* p, SDL_Texture* tIdle, SDL_Texture* tBox) {
+    p->x = 600; p->y = 350; // Başlangıç konumu
+    p->state = STATE_IDLE;
+    p->texIdle = tIdle;
+    p->texBox = tBox;       // Box3.png
+    p->w = 32; p->h = 32;   // Sprite boyutu
+    p->frameIndex = 0; p->frameTimer = 0;
+    p->flip = SDL_FLIP_NONE;
 }
 
-// Klavye girişlerini işle (Input Handling)
-void player_handle_input(Player* p, const Uint8* keys, float dt) {
-    float vx = 0, vy = 0; // Hız vektörleri
-
-    // Tuşlara göre yön belirle
-    if (keys[SDL_SCANCODE_A] || keys[SDL_SCANCODE_LEFT])  vx -= 1; // Sola
-    if (keys[SDL_SCANCODE_D] || keys[SDL_SCANCODE_RIGHT]) vx += 1; // Sağa
-    if (keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_UP])    vy -= 1; // Yukarı
-    if (keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_DOWN])  vy += 1; // Aşağı
-
-    // Hareket var mı?
-    int moving = (vx != 0 || vy != 0);
-    p->state = moving ? ANIM_WALK : ANIM_IDLE; // Hareket varsa yürüme animasyonu, yoksa durma
-
-    // --- YÖN DÜZELTMESİ (FLIP) ---
-    // vx < 0 ise (Sola gidiyor): Resmi olduğu gibi çiz.
-    if (vx < 0) p->flip = SDL_FLIP_NONE;
-    
-    // vx > 0 ise (Sağa gidiyor): Resmi yatayda çevir (Mirror).
-    if (vx > 0) p->flip = SDL_FLIP_HORIZONTAL;
-
-    // Koordinatları güncelle
-    if (moving) {
-        // Çapraz giderken hızın artmaması için vektörü normalize et (Pisagor teoremi)
-        float len = (vx*vx + vy*vy);
-        if (len > 1) { vx *= 0.7071f; vy *= 0.7071f; } // 1/kök(2) ile çarp
-        
-        // Yeni pozisyon = Eski Pozisyon + Hız * Zaman
-        p->x += vx * p->speed * dt;
-        p->y += vy * p->speed * dt;
-    }
+// Kediyi bir noktaya gönderir
+void player_set_target(Player* p, float x, float y, PlayerState actionOnArrival) {
+    p->targetX = x;
+    p->targetY = y;
+    p->nextState = actionOnArrival; // Varınca yapılacak işi kaydet
+    p->state = STATE_WALKING;       // Yürümeye başla
 }
 
-// Oyuncunun durumunu güncelle (Update)
 void player_update(Player* p, float dt) {
-    if (p->state == ANIM_IDLE) {
-        p->frameIndex = 0; // Dururken 0. kareyi göster
-    } 
-    else {
-        // Yürürken belirli bir kareyi göster (Basit animasyon)
-        p->frameIndex = 2; 
+    // Animasyon karesini ilerlet
+    p->frameTimer += dt;
+    if (p->frameTimer > 0.2f) {
+        p->frameIndex = (p->frameIndex + 1) % 4; // 0-1-2-3 döngüsü
+        p->frameTimer = 0;
     }
 
-    // --- SINIR KONTROLÜ (Boundary Checking) ---
-    // Kedinin ekrandan dışarı çıkmasını engelle
-    int catSize = 128; // Ekranda çizilen yaklaşık boyut (scale edilmiş hali)
-    if (p->x < 0) p->x = 0;
-    if (p->y < 0) p->y = 0;
-    if (p->x > 960 - catSize) p->x = 960 - catSize;
-    if (p->y > 450 - catSize) p->y = 450 - catSize; 
+    switch (p->state) {
+        case STATE_WALKING: {
+            // Vektör Matematiği: Hedefe olan farkı bul
+            float dx = p->targetX - p->x;
+            float dy = p->targetY - p->y;
+            // Pisagor teoremi ile mesafeyi bul: c = sqrt(a^2 + b^2)
+            float dist = sqrt(dx*dx + dy*dy);
+
+            // Hedefe 15 piksel kadar yaklaştıysak varmış sayalım
+            if (dist < 15.0f) {
+                p->x = p->targetX;
+                p->y = p->targetY;
+                p->state = p->nextState; // Planlanan eyleme geç
+                p->actionTimer = 4.0f;   // Eylem 4 saniye sürsün
+            } else {
+                // Hedefe doğru adım at (Normalize vektör * Hız * Zaman)
+                p->x += (dx / dist) * SPEED * dt;
+                p->y += (dy / dist) * SPEED * dt;
+                
+                // Yüzünü gittiği yere dön
+                if (dx > 0) p->flip = SDL_FLIP_HORIZONTAL;
+                else p->flip = SDL_FLIP_NONE;
+            }
+            break;
+        }
+        case STATE_EATING:
+        case STATE_SLEEPING:
+        case STATE_PLAYING:
+            // Eylem süresini geri say
+            p->actionTimer -= dt;
+            if (p->actionTimer <= 0) p->state = STATE_IDLE;
+            break;
+        default: break;
+    }
 }
 
-// Oyuncuyu ekrana çiz (Render)
+// Kediyi Çizme (Gelişmiş Efektlerle)
 void player_render(Player* p, SDL_Renderer* r) {
-    // Sprite sheet'te hangi satırı kullanacağız? (0: Durma, 1: Yürüme gibi)
-    int row = (p->state == ANIM_IDLE) ? 0 : 1;
+    SDL_Texture* currentTex = p->texIdle;
 
-    // Kaynak dikdörtgen (Resim dosyasındaki hangi parça alınacak?)
-    SDL_Rect src = { p->frameIndex * p->frameW, row * p->frameH, p->frameW, p->frameH };
+    // Eğer oynuyorsa KUTU resmini (Box3.png) kullan
+    if (p->state == STATE_PLAYING) {
+        currentTex = p->texBox;
+    }
+
+    SDL_Rect src = { p->frameIndex * p->w, 0, p->w, p->h };
+    SDL_Rect dst = { (int)p->x, (int)p->y, p->w * SCALE, p->h * SCALE };
+
+    // --- ÖZEL EFEKTLER (Animasyon eksikliğini kapatmak için) ---
     
-    // Hedef dikdörtgen (Ekranda nereye ve ne kadar büyük çizilecek?)
-    // frameW * 4 diyerek resmi 4 kat büyüttük (Pixel art tarzı için)
-    SDL_Rect dst = { (int)p->x, (int)p->y, p->frameW * 4, p->frameH * 4 }; 
+    // Varsayılan: Beyaz ve tam görünür
+    SDL_SetTextureColorMod(currentTex, 255, 255, 255);
+    SDL_SetTextureAlphaMod(currentTex, 255);
 
-    // Resmi çevirme (flip) özelliğiyle birlikte çiz
-    SDL_RenderCopyEx(r, p->sheet, &src, &dst, 0.0, NULL, p->flip);
+    if (p->state == STATE_SLEEPING) {
+        // Uyurken rengi MAVİ yap ve hafif şeffaflaştır (Rüya efekti)
+        SDL_SetTextureColorMod(currentTex, 150, 150, 255);
+        SDL_SetTextureAlphaMod(currentTex, 200);
+    } 
+    else if (p->state == STATE_EATING) {
+        // Yemek yerken rengi SARI yap ve titret (Yeme efekti)
+        SDL_SetTextureColorMod(currentTex, 255, 255, 200);
+        // Sinüs dalgası ile sağa sola sallanma
+        dst.x += (int)(sin(p->frameTimer * 30) * 4); 
+    }
+
+    SDL_RenderCopyEx(r, currentTex, &src, &dst, 0.0, NULL, p->flip);
+
+    // Çizim bitince efektleri temizle (Diğer nesneleri etkilemesin)
+    SDL_SetTextureColorMod(currentTex, 255, 255, 255);
+    SDL_SetTextureAlphaMod(currentTex, 255);
 }
