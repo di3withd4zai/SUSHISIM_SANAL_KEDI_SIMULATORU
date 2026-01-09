@@ -1,60 +1,55 @@
 /**
  * Dosya: src/player.c
  * Açıklama: Kedinin hareket matematiği ve görsel efektleri.
+ * GUNCELLEME: Uyuma animasyonu için özel sprite desteği eklendi.
  */
 
 #include "player.h"
-#include <math.h> // Matematik fonksiyonları (Karekök, Sinüs)
+#include <math.h> 
 
-#define SPEED 250.0f  // Kedinin hızı
-#define SCALE 4       // Kedi ekranda 4 kat büyük görünsün
+#define SPEED 250.0f  
+// Kedinin genel boyutu (Yürürken)
+#define SCALE 4       
 
 void player_init(Player* p, SDL_Texture* tIdle, SDL_Texture* tBox) {
-    p->x = 600; p->y = 350; // Başlangıç konumu
+    p->x = 600; p->y = 350; 
     p->state = STATE_IDLE;
     p->texIdle = tIdle;
-    p->texBox = tBox;       // Box3.png
-    p->w = 32; p->h = 32;   // Sprite boyutu
+    p->texBox = tBox;       
+    p->w = 32; p->h = 32;   
     p->frameIndex = 0; p->frameTimer = 0;
     p->flip = SDL_FLIP_NONE;
 }
 
-// Kediyi bir noktaya gönderir
 void player_set_target(Player* p, float x, float y, PlayerState actionOnArrival) {
     p->targetX = x;
     p->targetY = y;
-    p->nextState = actionOnArrival; // Varınca yapılacak işi kaydet
-    p->state = STATE_WALKING;       // Yürümeye başla
+    p->nextState = actionOnArrival; 
+    p->state = STATE_WALKING;       
 }
 
 void player_update(Player* p, float dt) {
-    // Animasyon karesini ilerlet
     p->frameTimer += dt;
     if (p->frameTimer > 0.2f) {
-        p->frameIndex = (p->frameIndex + 1) % 4; // 0-1-2-3 döngüsü
+        p->frameIndex = (p->frameIndex + 1) % 4; 
         p->frameTimer = 0;
     }
 
     switch (p->state) {
         case STATE_WALKING: {
-            // Vektör Matematiği: Hedefe olan farkı bul
             float dx = p->targetX - p->x;
             float dy = p->targetY - p->y;
-            // Pisagor teoremi ile mesafeyi bul: c = sqrt(a^2 + b^2)
             float dist = sqrt(dx*dx + dy*dy);
 
-            // Hedefe 15 piksel kadar yaklaştıysak varmış sayalım
             if (dist < 15.0f) {
                 p->x = p->targetX;
                 p->y = p->targetY;
-                p->state = p->nextState; // Planlanan eyleme geç
-                p->actionTimer = 4.0f;   // Eylem 4 saniye sürsün
+                p->state = p->nextState; 
+                p->actionTimer = 4.0f;   
             } else {
-                // Hedefe doğru adım at (Normalize vektör * Hız * Zaman)
                 p->x += (dx / dist) * SPEED * dt;
                 p->y += (dy / dist) * SPEED * dt;
                 
-                // Yüzünü gittiği yere dön
                 if (dx > 0) p->flip = SDL_FLIP_HORIZONTAL;
                 else p->flip = SDL_FLIP_NONE;
             }
@@ -63,7 +58,6 @@ void player_update(Player* p, float dt) {
         case STATE_EATING:
         case STATE_SLEEPING:
         case STATE_PLAYING:
-            // Eylem süresini geri say
             p->actionTimer -= dt;
             if (p->actionTimer <= 0) p->state = STATE_IDLE;
             break;
@@ -71,39 +65,65 @@ void player_update(Player* p, float dt) {
     }
 }
 
-// Kediyi Çizme (Gelişmiş Efektlerle)
+// >>> RENDER FONKSİYONU GÜNCELLENDİ <<<
 void player_render(Player* p, SDL_Renderer* r) {
     SDL_Texture* currentTex = p->texIdle;
-
-    // Eğer oynuyorsa KUTU resmini (Box3.png) kullan
-    if (p->state == STATE_PLAYING) {
-        currentTex = p->texBox;
-    }
-
-    SDL_Rect src = { p->frameIndex * p->w, 0, p->w, p->h };
+    
+    // Varsayılan Kesim (Yürüme/Bekleme) - 32x32 kareler
+    SDL_Rect src = { p->frameIndex * p->w, 0, p->w, p->h }; 
     SDL_Rect dst = { (int)p->x, (int)p->y, p->w * SCALE, p->h * SCALE };
 
-    // --- ÖZEL EFEKTLER (Animasyon eksikliğini kapatmak için) ---
+    // 1. OYUN OYNAMA DURUMU (Kutunun içine girme veya oyuncakla oynama)
+    if (p->state == STATE_PLAYING) {
+        currentTex = p->texBox; // Furnitures.png kullanılıyor
+        
+        // game.c'deki TOY değerlerini buraya manuel yazıyoruz:
+        src.x = 370; src.y = 10;
+        src.w = 80;  src.h = 120;
+        
+        dst.w = src.w * 2; 
+        dst.h = src.h * 2;
+        
+        // Konum düzeltmesi (Tam olduğu yerde görünsün)
+        dst.x = (int)p->x;
+        dst.y = (int)p->y - 50; 
+    }
     
-    // Varsayılan: Beyaz ve tam görünür
-    SDL_SetTextureColorMod(currentTex, 255, 255, 255);
-    SDL_SetTextureAlphaMod(currentTex, 255);
+    // 2. UYUMA DURUMU (ÖZEL SPRITE VE KONUM AYARI)
+    else if (p->state == STATE_SLEEPING) {
+        // --- AYARLAR BAŞLANGICI ---
+        
+        // A) Hangi dosyada? (Idle.png ise texIdle, Furnitures.png ise texBox)
+        currentTex = p->texIdle; 
+        
+        // B) Resmin koordinatları (Sprite Sheet üzerindeki yeri)
+        // Not: Buraya kendi uyuyan kedi resminin koordinatlarını girmelisin.
+        src.x = 62;    // Örnek: İlk kare
+        src.y = 86;    // Örnek: İlk satır
+        src.w = 48;   // Genişlik
+        src.h = 37;   // Yükseklik
 
-    if (p->state == STATE_SLEEPING) {
-        // Uyurken rengi MAVİ yap ve hafif şeffaflaştır (Rüya efekti)
-        SDL_SetTextureColorMod(currentTex, 150, 150, 255);
-        SDL_SetTextureAlphaMod(currentTex, 200);
-    } 
+        // C) Yatağın üzerinde hizalama (Offset)
+        // Kedi zaten yatağa yürüdü (p->x, p->y orada), ama tam yastığa koymak için:
+        int shiftX = 20;  // Sağa kaydır
+        int shiftY = -15; // Yukarı kaldır (Yatağın üstünde gibi dursun)
+
+        // D) Ekranda görünecek boyut
+        dst.w = src.w * 2; 
+        dst.h = src.h * 2;
+    }
+
+    // 3. YEMEK YEME DURUMU
     else if (p->state == STATE_EATING) {
-        // Yemek yerken rengi SARI yap ve titret (Yeme efekti)
         SDL_SetTextureColorMod(currentTex, 255, 255, 200);
-        // Sinüs dalgası ile sağa sola sallanma
+        // Titreme efekti (Yemek yerken mutlu sallanma)
         dst.x += (int)(sin(p->frameTimer * 30) * 4); 
     }
 
+    // Ekrana Çiz
     SDL_RenderCopyEx(r, currentTex, &src, &dst, 0.0, NULL, p->flip);
 
-    // Çizim bitince efektleri temizle (Diğer nesneleri etkilemesin)
+    // Çizim bitince renk modlarını sıfırla (Diğer çizimleri etkilemesin)
     SDL_SetTextureColorMod(currentTex, 255, 255, 255);
     SDL_SetTextureAlphaMod(currentTex, 255);
 }
