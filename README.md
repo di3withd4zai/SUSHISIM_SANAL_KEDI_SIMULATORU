@@ -30,7 +30,6 @@ Oyuncu; **Açlık, Mutluluk ve Enerji** değerlerini dengede tutarak oyunu sürd
 - 💀 **Game Over:** Tüm statlar sıfırlanınca oyun biter, yeniden başlanabilir
 - 💥 **Eylem Efektleri:** Mama sırasında kedi titreme/bounce efekti ile “yeme” hissi verir
 
-> Not: Son sürümde **kaka/temizlik mekaniği yoktur**. Kedi hareketi de **manuel değil**, aksiyonlara göre otomatik gerçekleşir.
 
 ---
 
@@ -51,7 +50,7 @@ Oyuncu; **Açlık, Mutluluk ve Enerji** değerlerini dengede tutarak oyunu sürd
 
 ---
 
-## 🧠 Oyun Mantığı (Kısa)
+### 🧠 Oyun Mantığı (Kısa)
 
 - Statlar zamanla azalır.
 - Oyuncu doğru zamanda aksiyon seçer:
@@ -62,7 +61,7 @@ Oyuncu; **Açlık, Mutluluk ve Enerji** değerlerini dengede tutarak oyunu sürd
 
 ---
 
-## 🧩 Kullanılan Teknolojiler
+### 🧩 Kullanılan Teknolojiler
 
 - **Dil:** C (C99/C11)
 - **Kütüphane:** SDL2
@@ -71,7 +70,7 @@ Oyuncu; **Açlık, Mutluluk ve Enerji** değerlerini dengede tutarak oyunu sürd
 
 ---
 
-## ⚙️ Kurulum ve Derleme (MSYS2 – UCRT64)
+### ⚙️ Kurulum ve Derleme (MSYS2 – UCRT64)
 
 ### 1) Gerekli Paketler
 bash
