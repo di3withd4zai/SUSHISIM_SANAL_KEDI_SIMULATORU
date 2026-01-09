@@ -8,8 +8,8 @@
 int main(int argc, char** argv) {
     Game g;
     
-    // Oyunu 1280x720 HD çözünürlükte başlat
-    if (!game_init(&g, "SushiSim: Sanal Kedi Simulatoru", 1280, 720)) {
+    // Oyunu 1920x1080 HD çözünürlükte başlat
+    if (!game_init(&g, "SushiSim: Sanal Kedi Simulatoru", 1920, 1080)) {
         return 1;
     }
 
@@ -24,3 +24,4 @@ int main(int argc, char** argv) {
     game_cleanup(&g);
     return 0;
 }
+

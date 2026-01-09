@@ -27,5 +27,5 @@ void stats_update_over_time(Stats* s, float dt) {
 }
 
 void stats_feed(Stats* s) { s->hunger = clamp(s->hunger + 20); s->score += 10; }
-void stats_rest(Stats* s) { s->energy = clamp(s->energy + 30); s->hunger -= 5; } // Uyumak acıktırır
-void stats_play(Stats* s) { s->happiness = clamp(s->happiness + 20); s->energy -= 10; } // Oynamak yorar
+void stats_rest(Stats* s) { s->energy = clamp(s->energy + 30); s->hunger = clamp(s->hunger - 5); } // Uyumak acıktırır
+void stats_play(Stats* s) { s->happiness = clamp(s->happiness + 20); s->energy = clamp(s->energy - 10); } // Oynamak yorar

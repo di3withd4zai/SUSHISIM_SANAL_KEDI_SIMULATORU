@@ -11,9 +11,10 @@
 // OYUN DURUMLARI (STATE MACHINE)
 // Oyunun o an hangi ekranda olduğunu kontrol ederiz.
 typedef enum {
-    STATE_MENU,     // Giriş Ekranı (Başla butonu burada)
+    STATE_START,     // Giriş Ekranı (Başla butonu burada)
     STATE_PLAY,     // Oyunun oynandığı asıl ekran
-    STATE_PAUSE     // ESC'ye basılınca gelen duraklatma ekranı
+    STATE_PAUSE,     // Oyun duraklatıldı ekranı
+    STATE_GAME_OVER // Oyun bitti ekrani
 } GameState;
 
 // OYUN NESNESİ (STRUCT)
@@ -38,3 +39,4 @@ void game_handle_events(Game* g); // Klavye/Fare dinleme
 void game_update(Game* g);        // Mantıksal hesaplamalar
 void game_render(Game* g);        // Ekrana çizim yapma
 void game_cleanup(Game* g);       // Temizlik ve kapatma
+
