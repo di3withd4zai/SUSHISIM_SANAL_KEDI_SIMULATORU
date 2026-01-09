@@ -1,133 +1,120 @@
-# 🐱 SushiSim – Sanal Kedi Simülasyonu
+# 🐱 SushiSim – Sanal Kedi Simülasyonu (C + SDL2)
 
 <div align="center">
 
-**Pixel art tarzında, C ve SDL2 ile geliştirilmiş interaktif sanal evcil hayvan oyunu.**
-
-[ Özellikler ] • [ Kontroller ] • [ Kurulum ]
+**C programlama dili ve SDL2 ile geliştirilen, pixel art tarzında interaktif sanal evcil hayvan oyunu.**  
+Kedinin ihtiyaçlarını yönet, doğru zamanda aksiyon al, Sushi’yi mutlu tut 🖤
 
 </div>
 
 ---
 
-## 📖 Proje Hakkında
+## 📌 Proje Özeti
 
-**SushiSim**, oyuncunun **Sushi** isimli bir kedinin ihtiyaçlarını yönettiği gerçek zamanlı bir simülasyondur. Oyuncu; açlık, mutluluk ve enerji dengesini korurken, aynı zamanda çevresel temizliği sağlayarak en yüksek skora ulaşmaya çalışır.
+**SushiSim**, oyuncunun **Sushi** adlı kedinin temel ihtiyaçlarını yönettiği gerçek zamanlı bir mini simülasyon oyunudur.  
+Oyuncu; **Açlık, Mutluluk ve Enerji** değerlerini dengede tutarak oyunu sürdürmeye çalışır.
 
-> **Amaç:** Kediyi hayatta tutmak ve en yüksek puanı toplamak!
+**Amaç:** Statları yöneterek oyunda mümkün olduğunca uzun süre hayatta kalmak.
 
 ---
 
-## 🎮 Oyun Özellikleri
+## ✨ Güncel Oyun Özellikleri
 
-| Özellik | Açıklama |
-| :--- | :--- |
-| 🐾 **Pixel Art Karakter** | Animasyonlu, yürüyen ve yön değiştirebilen kedi karakteri. |
-| 🧠 **İstatistik Sistemi** | **Açlık**, **Mutluluk** ve **Enerji** değerleri zamanla azalır. |
-| 💩 **Kirlilik Mekaniği** | Kedi rastgele zamanlarda **kaka yapabilir**. Temizlenmezse mutluluk hızla düşer. |
-| ✨ **Efektler** | Sevgi gösterildiğinde (oynama/besleme) ekranda **kalp partikülleri** belirir. |
-| 🖱️ **Etkileşim** | Mouse ile buton kontrolü ve klavye kısayolları. |
-| 💀 **Game Loop** | İstatistikler tükendiğinde **Game Over** olur, tek tuşla yeniden başlar. |
+- 🐾 **Pixel Art Kedi:** Idle / Uyuma / Oynama animasyonları
+- 📊 **HUD Stat Barları:** Açlık – Mutluluk – Enerji (ekranda bar olarak)
+- 🖱️ **Mouse ile Buton Kontrolü:**  
+  - **MAMA** → mama kabına gider, yeme efekti uygulanır  
+  - **OYNA** → oyuncağa gider, **Box3 (kutuda oynama)** animasyonuna geçer  
+  - **UYU** → yatağa gider, uyuma animasyonu oynar  
+- ⏸️ **Duraklat / Devam / Yeniden Başla:** Pause menüsü ile kontrol
+- 💀 **Game Over:** Tüm statlar sıfırlanınca oyun biter, yeniden başlanabilir
+- 💥 **Eylem Efektleri:** Mama sırasında kedi titreme/bounce efekti ile “yeme” hissi verir
+
+> Not: Son sürümde **kaka/temizlik mekaniği yoktur**. Kedi hareketi de **manuel değil**, aksiyonlara göre otomatik gerçekleşir.
 
 ---
 
 ## 🕹️ Kontroller
 
-Oyun hem **Mouse** hem de **Klavye** ile tam kontrol imkanı sunar.
+### 🖱️ Mouse
+- **BASLA** → Oyunu başlatır
+- **MAMA** → Besle (kedi mama kabına gider)
+- **OYNA** → Oyna (kedi oyuncağa gider, Box3 animasyonu başlar)
+- **UYU** → Uyu (kedi yatağa gider, uyku animasyonu başlar)
+- **DURAKLAT** → Oyunu duraklatır
+- **DEVAM** → Oyuna geri döner
+- **YENİDEN BAŞLA** → Oyunu sıfırlar
 
-### 🖱️ Mouse Kontrolleri
-Ekrandaki butonlara tıklayarak aşağıdaki işlemleri yapabilirsiniz:
-
-| Buton | İşlev | Etkisi |
-| :--- | :--- | :--- |
-| **BASLA** | Oyunu Başlat | Ana menüden oyuna geçer. |
-| **MAMA** | Besle | `+Açlık` `+Mutluluk` |
-| **OYNA** | Oyun Oyna | `++Mutluluk` `-Enerji` `-Açlık` |
-| **UYU** | Dinlen | `++Enerji` `-Açlık` |
-| **TEMİZLE** | Temizlik Yap | Yerdeki kirliliği temizler (`+Mutluluk`). |
-| **TEKRAR** | Restart | Oyunu sıfırlar (Game Over ekranında). |
-
-### ⌨️ Klavye Kısayolları
-
-| Tuş | İşlem |
-| :---: | :--- |
-| **W / A / S / D** | Kediyi oda içinde hareket ettirir. |
-| **F** | Mama Ver (Feed) |
-| **P** | Oyna (Play) |
-| **R** | Uyu/Dinlen (Rest) |
-| **ESC** | Oyundan Çıkış |
-| **ENTER** | Yeniden Başlat (Restart) |
+### ⌨️ Klavye (Opsiyonel)
+- `ESC` → Çıkış
+- `Enter` → (Game Over / Pause ekranında) yeniden başlatma/menü geçişleri (varsa)
 
 ---
 
-## ⚙️ Kurulum ve Derleme (MSYS2)
+## 🧠 Oyun Mantığı (Kısa)
 
-Projenin Windows üzerinde **MSYS2** ortamında derlenmesi için aşağıdaki adımları izleyin.
-
-### 1. Gerekli Paketlerin Kurulumu
-Terminali açın ve gerekli kütüphaneleri indirin:
-
-pacman -S mingw-w64-ucrt-x86_64-gcc \
-          mingw-w64-ucrt-x86_64-SDL2 \
-          mingw-w64-ucrt-x86_64-SDL2_image \
-          mingw-w64-ucrt-x86_64-SDL2_ttf
-
-
-### 2. Derleme (Compile)
-
-Proje dizinine gidin ve derleme komutunu çalıştırın:
-
-
-gcc src/*.c -o SushiSim.exe `sdl2-config --cflags --libs` -lSDL2_image -lSDL2_ttf
-
-
-
-### 3. Çalıştırma
-
-Oyunu başlatmak için:
-
-
-./SushiSim.exe
-
-
-
-> ⚠️ **ÖNEMLİ NOT:**
-> `assets` klasörü (resimler ve fontlar) ile oluşturulan `SushiSim.exe` dosyası **aynı klasörde** bulunmalıdır. Aksi takdirde oyun görselleri yükleyemez ve kapanır.
-
----
-
-## 🗂️ Proje Yapısı
-
-Kodun okunabilirliğini artırmak için **modüler** bir yapı tercih edilmiştir:
-
-
-SushiSim/
-├── src/
-│   ├── main.c           # Giriş noktası (Entry Point)
-│   ├── game.c           # Oyun döngüsü ve olay yönetimi
-│   ├── player.c         # Karakter animasyon ve hareketi
-│   ├── stats.c          # Matematiksel hesaplamalar
-│   └── render.c         # Çizim fonksiyonları
-├── assets/
-│   ├── sushi_sheet.png  # Karakter Sprite Atlası
-│   └── font.ttf         # Oyun Fontu
-└── README.md            # Proje Dokümantasyonu
-
-
+- Statlar zamanla azalır.
+- Oyuncu doğru zamanda aksiyon seçer:
+  - **MAMA** açlığı dengeler
+  - **UYU** enerjiyi toparlar
+  - **OYNA** mutluluğu yükseltir
+- Tüm statlar **0** olursa: **Game Over**
 
 ---
 
 ## 🧩 Kullanılan Teknolojiler
 
-* **Dil:** C (Standard C99/C11)
-* **Motor:** SDL2 (Simple DirectMedia Layer)
-* **Eklentiler:** SDL2_image, SDL2_ttf
-* **Derleyici:** GCC (MinGW-w64)
+- **Dil:** C (C99/C11)
+- **Kütüphane:** SDL2
+- **Ek Paketler:** SDL2_image (PNG), SDL2_ttf (yazı/font)
+- **Derleme Ortamı:** MSYS2 (UCRT64) + GCC (MinGW-w64)
 
 ---
 
-## 🎨 Kaynakça ve Lisanslar
+## ⚙️ Kurulum ve Derleme (MSYS2 – UCRT64)
 
-* **Geliştirici:** Nezaket Demirci (Bilgisayar Programcılığı Öğrencisi)
-* **Grafikler:** [Kittens Cats Character Pack](https://last-tick.itch.io/kittens-cats-character-32x32-pixel-animation-pack) (itch.io - last-tick)
-* **Lisans:** Bu proje eğitim amacıyla geliştirilmiştir.
+### 1) Gerekli Paketler
+```bash
+pacman -S mingw-w64-ucrt-x86_64-gcc \
+          mingw-w64-ucrt-x86_64-SDL2 \
+          mingw-w64-ucrt-x86_64-SDL2_image \
+          mingw-w64-ucrt-x86_64-SDL2_ttf
+
+2) Derleme
+Proje klasöründe:
+
+bash
+
+gcc src/*.c -o SushiSim.exe `sdl2-config --cflags --libs` -lSDL2_image -lSDL2_ttf
+
+3) Çalıştırma
+
+bash
+
+./SushiSim.exe
+
+⚠️ Önemli: assets/ klasörü, .exe ile aynı dizinde bulunmalıdır.
+Aksi halde texture/font yüklenemez.
+
+🗂️ Proje Yapısı
+text
+Kodu kopyala
+SushiSim/
+├── src/
+│   ├── main.c        # Entry point ve ana döngü
+│   ├── game.c/.h     # State yönetimi (Start/Play/Pause/GameOver) + event/update
+│   ├── player.c/.h   # Kedi animasyonları ve hedefe yürüyüş mantığı
+│   ├── stats.c/.h    # Stat güncellemeleri ve aksiyon etkileri
+│   └── render.c/.h   # HUD, butonlar, sprite çizimleri
+├── assets/
+│   ├── *.png         # Oyun görselleri (kedi animasyonları, UI, eşyalar)
+│   └── font.ttf      # Yazı fontu
+└── README.md
+🎨 Kaynakça / Asset Kullanımı
+Grafik kaynakları: itch.io (pixel art paketleri) ve proje içinde kullanılan diğer sprite setleri
+
+Bu proje eğitim amaçlı geliştirilmiştir.
+
+👩‍💻 Geliştirici
+Nezaket Demirci
+Bilgisayar Programcılığı Öğrencisi
