@@ -30,8 +30,8 @@ void stats_update_over_time(Stats* s, float dt) {
     s->tickTimer += dt;
     
     // Her 1 saniyede bir (Timer 1.0'ı geçince) işlem yap
-    if (s->tickTimer >= 1.0f) { 
-        s->tickTimer = 0.0f; // Sayacı sıfırla
+    while (s->tickTimer >= 1.0f) { 
+        s->tickTimer -= 1.0f; // Sayacı bir saniye düşür
 
         // Zamanla açlık ve enerji düşer
         s->hunger = clamp100(s->hunger - 2);

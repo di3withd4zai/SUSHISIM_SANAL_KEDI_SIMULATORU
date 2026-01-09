@@ -25,6 +25,7 @@ static GameState state = STATE_START;
 static Player player; // Kedi karakteri
 static Stats stats;   // İstatistikler (Açlık, Mutluluk vb.)
 static SDL_Texture* sushiSheet = NULL; // Kedinin resim dosyası (Sprite Sheet)
+static float actionCooldown = 0.0f; // Klavye kısayolları için bekleme süresi
 
 // --- PARTİKÜL SİSTEMİ (KALPLER) ---
 // Oyuncuya geri bildirim vermek için ekranda uçuşan kalpler
@@ -98,12 +99,22 @@ int game_init(Game* g, const char* title, int w, int h) {
 
     // Pencereyi oluştur
     g->window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, w, h, 0);
+    if (!g->window) return 0;
     
     // Çiziciyi (Renderer) oluştur (Donanım hızlandırma aktif)
     g->renderer = SDL_CreateRenderer(g->window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    if (!g->renderer) {
+        SDL_DestroyWindow(g->window);
+        return 0;
+    }
     
     // Kedinin görselini yükle
     sushiSheet = IMG_LoadTexture(g->renderer, "assets/sushi_sheet.png");
+    if (!sushiSheet) {
+        SDL_DestroyRenderer(g->renderer);
+        SDL_DestroyWindow(g->window);
+        return 0;
+    }
     
     // Alt sistemleri hazırla
     player_init(&player, sushiSheet, 32, 32); // Oyuncu ayarları
@@ -111,6 +122,8 @@ int game_init(Game* g, const char* title, int w, int h) {
     
     // Partikül havuzunu temizle (başlangıçta hiç kalp yok)
     for(int i=0; i<MAX_PARTICLES; i++) particles[i].active = 0;
+
+    srand((unsigned int)SDL_GetTicks()); // Rastgelelik için başlangıç tohumu
 
     state = STATE_START; // Başlangıç ekranı
     g->running = 1;      // Oyun çalışıyor
@@ -175,9 +188,11 @@ void game_handle_events(Game* g) {
         player_handle_input(&player, keys, g->dt);
         
         // Klavye kısayolları (F: Feed, P: Play, R: Rest)
-        if (keys[SDL_SCANCODE_F]) { stats_feed(&stats); spawn_heart(player.x+60, player.y); }
-        if (keys[SDL_SCANCODE_P]) { stats_play(&stats); spawn_heart(player.x+60, player.y); }
-        if (keys[SDL_SCANCODE_R]) stats_rest(&stats);
+        if (actionCooldown <= 0.0f) {
+            if (keys[SDL_SCANCODE_F]) { stats_feed(&stats); spawn_heart(player.x+60, player.y); actionCooldown = 0.2f; }
+            if (keys[SDL_SCANCODE_P]) { stats_play(&stats); spawn_heart(player.x+60, player.y); actionCooldown = 0.2f; }
+            if (keys[SDL_SCANCODE_R]) { stats_rest(&stats); actionCooldown = 0.2f; }
+        }
     }
 }
 
@@ -187,6 +202,11 @@ void game_update(Game* g) {
     Uint32 now = SDL_GetTicks();
     g->dt = (now - g->lastTick) / 1000.0f; // Milisaniyeyi saniyeye çevir
     g->lastTick = now;
+    if (g->dt > 0.1f) g->dt = 0.1f; // Ani takılmalarda aşırı hızlanmayı engelle
+    if (actionCooldown > 0.0f) {
+        actionCooldown -= g->dt;
+        if (actionCooldown < 0.0f) actionCooldown = 0.0f;
+    }
 
     if (state == STATE_PLAY) {
         stats_update_over_time(&stats, g->dt); // Açlık, enerji vb. zamanla değişimi
@@ -214,7 +234,7 @@ void game_render(Game* g) {
         render_text_centered(g->renderer, "- Sanal Kedi -", 190, 20, darkText);
 
         render_button(g->renderer, btnStart);
-        render_text(g->renderer, "BASLA", btnStart.x + 70, btnStart.y + 15, whiteText);
+        render_text_centered_in_rect(g->renderer, "BASLA", btnStart, whiteText);
     }
     // --- OYUN EKRANI ---
     else if (state == STATE_PLAY) {
@@ -239,16 +259,16 @@ void game_render(Game* g) {
 
         // 5. Butonları çiz
         render_button(g->renderer, btnFeed);
-        render_text(g->renderer, "MAMA",  btnFeed.x + 50, btnFeed.y + 15, whiteText);
+        render_text_centered_in_rect(g->renderer, "MAMA", btnFeed, whiteText);
         
         render_button(g->renderer, btnPlay);
-        render_text(g->renderer, "OYNA",   btnPlay.x + 55, btnPlay.y + 15, whiteText);
+        render_text_centered_in_rect(g->renderer, "OYNA", btnPlay, whiteText);
         
         render_button(g->renderer, btnRest);
-        render_text(g->renderer, "UYU", btnRest.x + 60, btnRest.y + 15, whiteText);
+        render_text_centered_in_rect(g->renderer, "UYU", btnRest, whiteText);
 
         render_button(g->renderer, btnClean);
-        render_text(g->renderer, "TEMIZLE", btnClean.x + 40, btnClean.y + 15, whiteText);
+        render_text_centered_in_rect(g->renderer, "TEMIZLE", btnClean, whiteText);
     }
     // --- OYUN BİTTİ EKRANI ---
     else if (state == STATE_GAMEOVER) {
@@ -259,7 +279,7 @@ void game_render(Game* g) {
         render_text_centered(g->renderer, "OYUN BITTI", 200, 64, overColor);
         
         render_button(g->renderer, btnRestart);
-        render_text(g->renderer, "TEKRAR", btnRestart.x + 65, btnRestart.y + 15, whiteText);
+        render_text_centered_in_rect(g->renderer, "TEKRAR", btnRestart, whiteText);
     }
 
     // Çizilen her şeyi ekrana yansıt (Double Buffering)
@@ -271,5 +291,7 @@ void game_cleanup(Game* g) {
     if (sushiSheet) SDL_DestroyTexture(sushiSheet);
     if (g->renderer) SDL_DestroyRenderer(g->renderer);
     if (g->window) SDL_DestroyWindow(g->window);
-    IMG_Quit(); SDL_Quit(); TTF_Quit();
+    IMG_Quit();
+    TTF_Quit();
+    SDL_Quit();
 }

@@ -63,6 +63,25 @@ void render_text_centered(SDL_Renderer* r, const char* text, int y, int size, SD
     SDL_DestroyTexture(tex);
 }
 
+// Dikdörtgen içinde ortalanmış yazı yazma (Butonlar için)
+void render_text_centered_in_rect(SDL_Renderer* r, const char* text, SDL_Rect rect, SDL_Color color) {
+    TTF_Font* f = get_font(20);
+    if (!f) return;
+
+    SDL_Surface* surf = TTF_RenderUTF8_Blended(f, text, color);
+    if (!surf) return;
+
+    SDL_Texture* tex = SDL_CreateTextureFromSurface(r, surf);
+    int x = rect.x + (rect.w - surf->w) / 2;
+    int y = rect.y + (rect.h - surf->h) / 2;
+    SDL_Rect dst = { x, y, surf->w, surf->h };
+
+    SDL_RenderCopy(r, tex, NULL, &dst);
+
+    SDL_FreeSurface(surf);
+    SDL_DestroyTexture(tex);
+}
+
 // Durum Çubuğu (Bar) Çizimi (Örn: Can, Açlık barı)
 static void draw_bar(SDL_Renderer* r, int x, int y, int w, int h, int value, Uint8 rr, Uint8 gg, Uint8 bb) {
     // 1. Arka planı çiz (Gri)
