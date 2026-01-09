@@ -74,47 +74,109 @@ Oyuncu; **Açlık, Mutluluk ve Enerji** değerlerini dengede tutarak oyunu sürd
 ## ⚙️ Kurulum ve Derleme (MSYS2 – UCRT64)
 
 ### 1) Gerekli Paketler
-```bash
+bash
 pacman -S mingw-w64-ucrt-x86_64-gcc \
           mingw-w64-ucrt-x86_64-SDL2 \
           mingw-w64-ucrt-x86_64-SDL2_image \
           mingw-w64-ucrt-x86_64-SDL2_ttf
 
-2) Derleme
+---
+
+### 2) Derleme
 Proje klasöründe:
 
 bash
 
 gcc src/*.c -o SushiSim.exe `sdl2-config --cflags --libs` -lSDL2_image -lSDL2_ttf
 
-3) Çalıştırma
+---
+
+### 3) Çalıştırma
 
 bash
 
 ./SushiSim.exe
 
+---
+
 ⚠️ Önemli: assets/ klasörü, .exe ile aynı dizinde bulunmalıdır.
 Aksi halde texture/font yüklenemez.
 
-🗂️ Proje Yapısı
-text
-Kodu kopyala
+---
+
+### 🗂️ Proje Yapısı
+
+```text
 SushiSim/
 ├── src/
 │   ├── main.c        # Entry point ve ana döngü
-│   ├── game.c/.h     # State yönetimi (Start/Play/Pause/GameOver) + event/update
-│   ├── player.c/.h   # Kedi animasyonları ve hedefe yürüyüş mantığı
-│   ├── stats.c/.h    # Stat güncellemeleri ve aksiyon etkileri
-│   └── render.c/.h   # HUD, butonlar, sprite çizimleri
+│   ├── game.c / .h   # State yönetimi (Start / Play / Pause / GameOver)
+│   ├── player.c / .h # Kedi animasyonları ve hedefe yürüyüş mantığı
+│   ├── stats.c / .h  # Stat güncellemeleri ve aksiyon etkileri
+│   └── render.c / .h # HUD, butonlar, sprite çizimleri
 ├── assets/
-│   ├── *.png         # Oyun görselleri (kedi animasyonları, UI, eşyalar)
+│   ├── *.png         # Oyun görselleri (kedi, UI, eşyalar)
 │   └── font.ttf      # Yazı fontu
 └── README.md
-🎨 Kaynakça / Asset Kullanımı
-Grafik kaynakları: itch.io (pixel art paketleri) ve proje içinde kullanılan diğer sprite setleri
 
-Bu proje eğitim amaçlı geliştirilmiştir.
+```
+---
 
-👩‍💻 Geliştirici
-Nezaket Demirci
-Bilgisayar Programcılığı Öğrencisi
+### 🎨 Kaynakça / Asset ve Araç Kullanımı
+
+Bu proje geliştirilirken aşağıdaki kaynaklardan ve araçlardan yararlanılmıştır:
+
+🎮 Grafik & UI Varlıkları
+
+ToffeeCraft – Cat User Interface
+https://toffeecraft.itch.io/cat-user-interface
+
+ToffeeCraft – Cat Pack
+https://toffeecraft.itch.io/cat-pack
+
+ToffeeCraft – UI Pack
+https://toffeecraft.itch.io/ui
+
+ToffeeCraft – Cozy Coffee UI Pack
+https://toffeecraft.itch.io/ui-user-interface-pack-cozy-coffee
+
+ToffeeCraft – Cat Mega Bundle
+https://toffeecraft.itch.io/cat-mega-bundle
+
+Kullanılan tüm grafikler, ilgili lisans koşullarına uygun şekilde eğitim amaçlı projede kullanılmıştır.
+
+---
+
+### 🤖 Yapay Zeka & Geliştirme Destek Araçları
+
+ChatGPT (OpenAI) –
+Oyun mimarisi, C/SDL2 kod yapısı, hata ayıklama ve dokümantasyon desteği.
+
+OpenAI Codex –
+Kod düzenleme, refactor ve SDL2 tabanlı animasyon/logic geliştirme sürecinde yardımcı araç.
+
+Google Gemini –
+Genel yazılım fikirleri, problem çözme ve alternatif yaklaşımlar için destek aracı.
+
+Yapay zeka araçları, geliştirici tarafından yönlendirilmiş ve nihai kararlar manuel olarak verilmiştir.
+
+---
+
+### 📚 Teknik Kaynaklar
+
+SDL2 Documentation
+https://wiki.libsdl.org/
+
+SDL2_image & SDL2_ttf Documentation
+https://wiki.libsdl.org/SDL2_image
+
+https://wiki.libsdl.org/SDL2_ttf
+
+---
+
+### 👩‍💻 Geliştirici
+
+# Nezaket Demirci
+# Bilgisayar Programcılığı Öğrencisi
+
+### Bu proje, C programlama dili, oyun döngüsü (game loop), durum makineleri (state machine) ve temel 2D oyun mantığını öğrenmek amacıyla geliştirilmiştir.
